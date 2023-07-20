@@ -173,8 +173,8 @@ camera.position.y = 3
 camera.position.z = 3
 scene.add(camera)
 
-const axesHelper = new THREE.AxesHelper()
-scene.add(axesHelper)
+// const axesHelper = new THREE.AxesHelper()
+// scene.add(axesHelper)
 // Controls
 const controls = new OrbitControls(camera, canvas)
 controls.enableDamping = true
