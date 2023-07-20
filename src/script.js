@@ -1,6 +1,9 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import * as dat from 'lil-gui'
+import vertexShader from './shaders/vertex.glsl'
+import fragmentShader from './shaders/fragment.glsl'
+
 
 THREE.ColorManagement.enabled = false
 
@@ -50,6 +53,9 @@ const generateGalaxy = () =>
 
     const positions = new Float32Array(parameters.count * 3)
     const colors = new Float32Array(parameters.count * 3)
+    const randomness = new Float32Array(parameters.count * 3)
+
+    const starSize = new Float32Array(parameters.count)
 
     const insideColor = new THREE.Color(parameters.insideColor)
     const outsideColor = new THREE.Color(parameters.outsideColor)
@@ -67,6 +73,11 @@ const generateGalaxy = () =>
         const randomY = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : - 1) * parameters.randomness * radius
         const randomZ = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : - 1) * parameters.randomness * radius
 
+        randomness[i+0] = randomX 
+        randomness[i+1] = randomY
+        randomness[i+2] = randomZ
+
+
         positions[i3    ] = Math.cos(branchAngle) * radius + randomX
         positions[i3 + 1] = randomY
         positions[i3 + 2] = Math.sin(branchAngle) * radius + randomZ
@@ -78,20 +89,31 @@ const generateGalaxy = () =>
         colors[i3    ] = mixedColor.r
         colors[i3 + 1] = mixedColor.g
         colors[i3 + 2] = mixedColor.b
+
+        // star size
+
+        starSize[i] = Math.random() // 2-1
     }
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+    geometry.setAttribute('starSize', new THREE.BufferAttribute(starSize, 1))
+    geometry.setAttribute('aRandomness', new THREE.BufferAttribute(randomness, 3))
 
+    console.log(geometry)
     /**
      * Material
      */
-    material = new THREE.PointsMaterial({
-        size: parameters.size,
-        sizeAttenuation: true,
+    material = new THREE.ShaderMaterial({
+        vertexShader:vertexShader,
+        fragmentShader:fragmentShader,
         depthWrite: false,
         blending: THREE.AdditiveBlending,
-        vertexColors: true
+        vertexColors: true,
+        uniforms:{
+            uTime:{value:0},
+            uSize:{value:20.0 * renderer.getPixelRatio()},
+        }
     })
 
     /**
@@ -101,15 +123,22 @@ const generateGalaxy = () =>
     scene.add(points)
 }
 
-generateGalaxy()
 
-gui.add(parameters, 'count').min(100).max(1000000).step(100).onFinishChange(generateGalaxy)
-gui.add(parameters, 'radius').min(0.01).max(20).step(0.01).onFinishChange(generateGalaxy)
-gui.add(parameters, 'branches').min(2).max(20).step(1).onFinishChange(generateGalaxy)
-gui.add(parameters, 'randomness').min(0).max(2).step(0.001).onFinishChange(generateGalaxy)
-gui.add(parameters, 'randomnessPower').min(1).max(10).step(0.001).onFinishChange(generateGalaxy)
-gui.addColor(parameters, 'insideColor').onFinishChange(generateGalaxy)
-gui.addColor(parameters, 'outsideColor').onFinishChange(generateGalaxy)
+
+gui.add(parameters, 'count').min(100).max(1000000).step(100)
+   .onFinishChange(generateGalaxy)
+gui.add(parameters, 'radius').min(0.01).max(20).step(0.01)
+   .onFinishChange(generateGalaxy)
+gui.add(parameters, 'branches').min(2).max(20).step(1)
+   .onFinishChange(generateGalaxy)
+gui.add(parameters, 'randomness').min(0).max(2).step(0.001)
+   .onFinishChange(generateGalaxy)
+gui.add(parameters, 'randomnessPower').min(1).max(10).step(0.001)
+   .onFinishChange(generateGalaxy)
+gui.addColor(parameters, 'insideColor')
+   .onFinishChange(generateGalaxy)
+gui.addColor(parameters, 'outsideColor')
+   .onFinishChange(generateGalaxy)
 
 /**
  * Sizes
@@ -144,6 +173,8 @@ camera.position.y = 3
 camera.position.z = 3
 scene.add(camera)
 
+const axesHelper = new THREE.AxesHelper()
+scene.add(axesHelper)
 // Controls
 const controls = new OrbitControls(camera, canvas)
 controls.enableDamping = true
@@ -158,6 +189,14 @@ renderer.outputColorSpace = THREE.LinearSRGBColorSpace
 renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 
+
+
+/**
+ * Generate galaxy
+ */
+
+generateGalaxy()
+
 /**
  * Animate
  */
@@ -166,7 +205,8 @@ const clock = new THREE.Clock()
 const tick = () =>
 {
     const elapsedTime = clock.getElapsedTime()
-
+    material.uniforms.uTime.value = elapsedTime
+  
     // Update controls
     controls.update()
 
